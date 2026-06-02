@@ -1,45 +1,55 @@
 import sys
 import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
-                             QFileDialog, QMessageBox, QLabel)
+                             QFileDialog, QMessageBox, QLabel, QComboBox)
 
-# Укажите названия ваших файлов здесь
-REQUIRED_FILES = ["test1.txt", "test2.txt", "test10.txt", "test9.txt"]
+# Конфигурация: словари с наборами файлов
+FILE_CONFIGS = {
+    "Local SOPs": ["test10.txt", "test100.txt"],
+    "FF Events": ["image.png", "video.mp4", "logo.svg"],
+    "International events": ["config.ini", "settings.json", "auth.key", "config1.ini", "settings1.json", "auth1.key",
+                             "config2.ini", "settings2.json", "auth2.key"]
+}
 
 
 class FileCheckerApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Проверка наличия файлов")
-        self.resize(300, 150)
+        self.setWindowTitle("CheckBox")
+        self.resize(350, 200)
 
         layout = QVBoxLayout()
 
-        self.label = QLabel(f"Ожидаемые файлы:\n{', '.join(REQUIRED_FILES)}")
-        layout.addWidget(self.label)
+        layout.addWidget(QLabel("Choose type:"))
 
-        self.btn_check = QPushButton("Выбрать папку и проверить")
+        # Выпадающий список
+        self.combo = QComboBox()
+        self.combo.addItems(FILE_CONFIGS.keys())
+        layout.addWidget(self.combo)
+
+        self.btn_check = QPushButton("Choose folder to check")
         self.btn_check.clicked.connect(self.check_files)
         layout.addWidget(self.btn_check)
 
         self.setLayout(layout)
 
     def check_files(self):
-        folder_path = QFileDialog.getExistingDirectory(self, "Выберите папку для проверки")
+        # Получаем список для выбранного варианта
+        selected_key = self.combo.currentText()
+        required_files = FILE_CONFIGS[selected_key]
+
+        folder_path = QFileDialog.getExistingDirectory(self, "Choose folder")
         if not folder_path:
             return
 
-        # Получаем список файлов в папке
         existing_files = os.listdir(folder_path)
-
-        # Находим отсутствующие
-        missing_files = [f for f in REQUIRED_FILES if f not in existing_files]
+        missing_files = [f for f in required_files if f not in existing_files]
 
         if not missing_files:
-            QMessageBox.information(self, "Успех", "Все файлы на месте!")
+            QMessageBox.information(self, "Success", f"[{selected_key}]\nAll files are here!")
         else:
-            msg = "Отсутствуют файлы:\n\n" + "\n".join(missing_files)
-            QMessageBox.warning(self, "Внимание", msg)
+            msg = f"[{selected_key}]\nMissing files:\n\n" + "\n".join(missing_files)
+            QMessageBox.warning(self, "Notice", msg)
 
 
 if __name__ == "__main__":
