@@ -3,53 +3,68 @@ import os
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton,
                              QFileDialog, QMessageBox, QLabel, QComboBox)
 
-# Конфигурация: словари с наборами файлов
+# Конфигурация: списки файлов
 FILE_CONFIGS = {
-    "Local SOPs": ["test10.txt", "test100.txt"],
-    "FF Events": ["image.png", "video.mp4", "logo.svg"],
-    "International events": ["config.ini", "settings.json", "auth.key", "config1.ini", "settings1.json", "auth1.key",
-                             "config2.ini", "settings2.json", "auth2.key"]
+    "Вариант 1": ["Seminar.txt", "test1.txt", "test3.txt"],
+    "Вариант 2": ["image.png", "video.mp4"],
 }
 
 
 class FileCheckerApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("CheckBox")
-        self.resize(350, 200)
+        self.setWindowTitle("Проверка наличия и порядка файлов")
+        self.resize(400, 250)
 
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Выберите тип проверки:"))
 
-        layout.addWidget(QLabel("Choose type:"))
-
-        # Выпадающий список
         self.combo = QComboBox()
         self.combo.addItems(FILE_CONFIGS.keys())
         layout.addWidget(self.combo)
 
-        self.btn_check = QPushButton("Choose folder to check")
+        self.btn_check = QPushButton("Выбрать папку и проверить")
         self.btn_check.clicked.connect(self.check_files)
         layout.addWidget(self.btn_check)
 
         self.setLayout(layout)
 
     def check_files(self):
-        # Получаем список для выбранного варианта
-        selected_key = self.combo.currentText()
-        required_files = FILE_CONFIGS[selected_key]
-
-        folder_path = QFileDialog.getExistingDirectory(self, "Choose folder")
+        folder_path = QFileDialog.getExistingDirectory(self, "Выберите папку")
         if not folder_path:
             return
 
-        existing_files = os.listdir(folder_path)
-        missing_files = [f for f in required_files if f not in existing_files]
+        required_files = FILE_CONFIGS[self.combo.currentText()]
+        existing_files_map = {}  # Словарь {имя: время_изменения}
 
-        if not missing_files:
-            QMessageBox.information(self, "Success", f"[{selected_key}]\nAll files are here!")
+        # 1. Сначала проверяем наличие всех файлов
+        missing = []
+        for f in required_files:
+            full_path = os.path.join(folder_path, f)
+            if not os.path.exists(full_path):
+                missing.append(f)
+            else:
+                existing_files_map[f] = os.path.getmtime(full_path)
+
+        if missing:
+            QMessageBox.critical(self, "Ошибка", f"Отсутствуют файлы:\n{', '.join(missing)}")
+            return
+
+        # 2. Проверяем хронологию (порядок в списке)
+        # Сравниваем: время[0] <= время[1] <= время[2] ...
+        errors = []
+        for i in range(len(required_files) - 1):
+            file_current = required_files[i]
+            file_next = required_files[i + 1]
+
+            if existing_files_map[file_current] > existing_files_map[file_next]:
+                errors.append(f"'{file_current}' создан позже, чем '{file_next}'")
+
+        if errors:
+            QMessageBox.warning(self, "Нарушение порядка",
+                                "Файлы найдены, но нарушена хронология создания:\n\n" + "\n".join(errors))
         else:
-            msg = f"[{selected_key}]\nMissing files:\n\n" + "\n".join(missing_files)
-            QMessageBox.warning(self, "Notice", msg)
+            QMessageBox.information(self, "Успех", "Все файлы на месте и порядок соблюден!")
 
 
 if __name__ == "__main__":
